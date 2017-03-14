@@ -14,7 +14,10 @@
     https://github.com/Degrader/Prep-SCCM
 #>
 
+#Get Domain name
 $DomainName = (Get-WmiObject win32_computersystem).domain
+
+###Build D:\Sources
 
 new-item -ItemType Directory -Path D:\Sources\Applications -Force
 new-item -ItemType Directory -Path D:\Sources\OSD -Force
@@ -22,6 +25,7 @@ New-Item -ItemType Directory -Path D:\Sources\Packages -Force
 New-Item -ItemType Directory -Path D:\Sources\OSD\Drivers -Force
 New-Item -ItemType Directory -Path D:\Sources\OSD\Images -Force
 
+###Add Domain Admins with FullControl, add Everyone with ReadAndExecute
 $SourcesFolderACL = Get-Acl D:\Sources
 $SourcesFolderACL.SetAccessRuleProtection($false, $true)
 $ACL_Sources_DomainAdmin = New-Object System.Security.AccessControl.FileSystemAccessRule("$DomainName\Domain Admins", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
@@ -31,12 +35,12 @@ $SourcesFolderACL.AddAccessRule($ACL_Sources_Everyone)
 
 Set-Acl -Path "D:\Sources" $SourcesFolderACL
 
+###Create SMB Share "Sources" with Everyone set to FullAccess
 New-SmbShare -Name "Sources" -Path "D:\Sources" -ContinuouslyAvailable -FullAccess "Everyone"
 
-##Role & Feature Configuration##
+###Role & Feature Configuration
 [string[]]$InstallFeatures = @()
 
-clear
 Write-Host "Gathering Role Information...`n`n`n`n`n`n`n" -BackgroundColor DarkBlue -ForegroundColor Yellow
 
 if ((Get-WindowsFeature NET-Framework-Features).Installed -eq 0){
@@ -130,7 +134,7 @@ Add-WindowsFeature $InstallFeatures
 
 Write-Host "`nFeature Installation complete." -ForegroundColor Green
 
-##Firewall Rules##
+###Firewall Rules
 Write-host "Setting up Firewall rules for CM Distribution Point." -BackgroundColor DarkBlue -ForegroundColor Yellow
 
 Write-Host "Allowing File and Print Sharing SMB In, TCP" -BackgroundColor DarkBlue -ForegroundColor Yellow
@@ -151,6 +155,6 @@ Set-NetFirewallRule -Name "WMI-RPCSS-In-TCP" -Profile Domain,Private -Protocol T
 Write-Host "`nFirewall Rules set`n" -ForegroundColor Green
 
 Write-Host "System Restart is required..." -BackgroundColor DarkRed -ForegroundColor White
-pause
-Restart-Computer -Force
 
+###Reboot
+Restart-Computer -Force
