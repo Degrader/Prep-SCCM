@@ -36,7 +36,7 @@ $SourcesFolderACL.AddAccessRule($ACL_Sources_Everyone)
 Set-Acl -Path "D:\Sources" $SourcesFolderACL
 
 ###Create SMB Share "Sources" with Everyone set to FullAccess
-New-SmbShare -Name "Sources" -Path "D:\Sources" -ContinuouslyAvailable -FullAccess "Everyone"
+New-SmbShare -Name "Sources" -Path "D:\Sources" -ContinuouslyAvailable $true -FullAccess "Everyone"
 
 ###Role & Feature Configuration
 [string[]]$InstallFeatures = @()
