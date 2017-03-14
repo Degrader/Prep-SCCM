@@ -11,7 +11,7 @@
     Author     : Jordan Colton - jordan.colton@imesd.k12.or.us  
     Requires   : PowerShell V2,V3,V4,V5
 .LINK  
-Install SCCM Site Server
+    https://github.com/Degrader/Prep-SCCM
 #>
 
 $DomainName = (Get-WmiObject win32_computersystem).domain
