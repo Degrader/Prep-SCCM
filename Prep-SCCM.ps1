@@ -24,8 +24,8 @@ New-Item -ItemType Directory -Path D:\Sources\OSD\Images -Force
 
 $SourcesFolderACL = Get-Acl D:\Sources
 $SourcesFolderACL.SetAccessRuleProtection($false, $true)
-$ACL = New-Object System.Security.AccessControl.FileSystemAccessRule("$DomainName\Domain Admins", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
-$ACL2 = New-Object System.Security.AccessControl.FileSystemAccessRule("Everyone", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
+$ACL_Sources_DomainAdmin = New-Object System.Security.AccessControl.FileSystemAccessRule("$DomainName\Domain Admins", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+$ACL_Sources_Everyone = New-Object System.Security.AccessControl.FileSystemAccessRule("Everyone", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
 $SourcesFolderACL.AddAccessRule($ACL_Sources_DomainAdmin)
 $SourcesFolderACL.AddAccessRule($ACL_Sources_Everyone)
 
