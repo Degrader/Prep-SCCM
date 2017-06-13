@@ -1,5 +1,5 @@
-﻿<#  
-.SYNOPSIS  
+<#  
+.SYNOPSIS
     Preps server for SCCM Installation/Deployment  
 .DESCRIPTION  
     This script creates a Sources directory on a D: "data" drive,
@@ -7,9 +7,10 @@
     script also installs all necessary Roles and Features as well
     as firewall rules needed for SCCM Installation/Deployment.
 .NOTES  
-    File Name  : Prep-SCCM.ps1  
-    Author     : Jordan Colton - jordan.colton@imesd.k12.or.us  
-    Requires   : PowerShell V2,V3,V4,V5
+    File Name   : Prep-SCCM.ps1  
+    Author      : Jordan Colton - jordan.colton@imesd.k12.or.us  
+    Requires    : PowerShell V2
+    Version 1.1 : 3/14/2017 10:33
 .LINK  
     https://github.com/Degrader/Prep-SCCM
 #>
@@ -18,25 +19,28 @@
 $DomainName = (Get-WmiObject win32_computersystem).domain
 
 ###Build D:\Sources
+if ((Test-Path "D:") -eq $true){
+    new-item -ItemType Directory -Path D:\Sources\Applications -Force
+    new-item -ItemType Directory -Path D:\Sources\OSD -Force
+    New-Item -ItemType Directory -Path D:\Sources\Packages -Force
+    New-Item -ItemType Directory -Path D:\Sources\OSD\Drivers -Force
+    New-Item -ItemType Directory -Path D:\Sources\OSD\Images -Force
 
-new-item -ItemType Directory -Path D:\Sources\Applications -Force
-new-item -ItemType Directory -Path D:\Sources\OSD -Force
-New-Item -ItemType Directory -Path D:\Sources\Packages -Force
-New-Item -ItemType Directory -Path D:\Sources\OSD\Drivers -Force
-New-Item -ItemType Directory -Path D:\Sources\OSD\Images -Force
 
-###Add Domain Admins with FullControl, add Everyone with ReadAndExecute
-$SourcesFolderACL = Get-Acl D:\Sources
-$SourcesFolderACL.SetAccessRuleProtection($false, $true)
-$ACL_Sources_DomainAdmin = New-Object System.Security.AccessControl.FileSystemAccessRule("$DomainName\Domain Admins", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
-$ACL_Sources_Everyone = New-Object System.Security.AccessControl.FileSystemAccessRule("Everyone", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
-$SourcesFolderACL.AddAccessRule($ACL_Sources_DomainAdmin)
-$SourcesFolderACL.AddAccessRule($ACL_Sources_Everyone)
+    ###Add Domain Admins with FullControl, add Everyone with ReadAndExecute
+    $SourcesFolderACL = Get-Acl D:\Sources
+    $SourcesFolderACL.SetAccessRuleProtection($false, $true)
+    $ACL_Sources_DomainAdmin = New-Object System.Security.AccessControl.FileSystemAccessRule("$DomainName\Domain Admins", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $ACL_Sources_Everyone = New-Object System.Security.AccessControl.FileSystemAccessRule("Everyone", "ReadAndExecute", "ContainerInherit,ObjectInherit", "None", "Allow")
+    $SourcesFolderACL.AddAccessRule($ACL_Sources_DomainAdmin)
+    $SourcesFolderACL.AddAccessRule($ACL_Sources_Everyone)
 
-Set-Acl -Path "D:\Sources" $SourcesFolderACL
+    Set-Acl -Path "D:\Sources" $SourcesFolderACL
 
-###Create SMB Share "Sources" with Everyone set to FullAccess
-New-SmbShare -Name "Sources" -Path "D:\Sources" -FullAccess "$DomainName\Everyone"
+    ###Create SMB Share "Sources" with Everyone set to FullAccess
+
+    New-SmbShare -Name "Sources" -Path "D:\Sources" -FullAccess "$DomainName\Everyone"
+}
 
 ###Role & Feature Configuration
 [string[]]$InstallFeatures = @()
@@ -130,9 +134,12 @@ if ((Get-WindowsFeature Web-Scripting-Tools).Installed -eq 0){
 
 Write-Host "`nInstalling configured Roles & Features..."  -BackgroundColor DarkBlue -ForegroundColor Yellow
 
-Add-WindowsFeature $InstallFeatures
+if ($InstallFeatures -ne $null){
+    Add-WindowsFeature $InstallFeatures
+    Write-Host "`nFeature Installation complete." -ForegroundColor Green
+}
 
-Write-Host "`nFeature Installation complete." -ForegroundColor Green
+if ($InstallFeatures -eq $null){Write-Host "`nNo Roles needed to be installed." -ForegroundColor Green}
 
 ###Firewall Rules
 Write-host "Setting up Firewall rules for CM Distribution Point." -BackgroundColor DarkBlue -ForegroundColor Yellow
@@ -141,13 +148,16 @@ Write-Host "Allowing File and Print Sharing SMB In, TCP" -BackgroundColor DarkBl
 Set-NetFirewallRule -Name "FPS-SMB-In-TCP" -Profile Domain,Private -Protocol TCP -Action Allow -Enabled True
 
 Write-Host "Allowing RPC Endpoint Mapper, TCP" -BackgroundColor DarkBlue -ForegroundColor Yellow
-New-NetFirewallRule -Name "RPC Endpoint Mapper TCP" -DisplayName "RPC Endpoint Mapper TCP" -Protocol TCP -Direction Inbound -LocalPort "RPCEPMap" -Program "%SystemRoot%\System32\svchost.exe" -Profile Domain,Private -Action Allow -Enabled True
+try {New-NetFirewallRule -Name "RPC Endpoint Mapper TCP" -DisplayName "RPC Endpoint Mapper TCP" -Protocol TCP -Direction Inbound -LocalPort "RPCEPMap" -Program "%SystemRoot%\System32\svchost.exe" -Profile Domain,Private -Action Allow -Enabled True -ErrorAction Stop}
+catch [Microsoft.Management.Infrastructure.CimException] {write-host "Rule Already Exists"}
 
 Write-Host "Allowing RPC Endpoint Mapper via Port 135, TCP" -BackgroundColor DarkBlue -ForegroundColor Yellow
-New-NetFirewallRule -Name "RPC Endpoint Mapper (135) TCP" -DisplayName "RPC Endpoint Mapper (135) TCP" -Protocol TCP -Direction Inbound -LocalPort "135" -Program "%SystemRoot%\System32\svchost.exe" -Profile Domain,Private -Action Allow -Enabled True
+try {New-NetFirewallRule -Name "RPC Endpoint Mapper (135) TCP" -DisplayName "RPC Endpoint Mapper (135) TCP" -Protocol TCP -Direction Inbound -LocalPort "135" -Program "%SystemRoot%\System32\svchost.exe" -Profile Domain,Private -Action Allow -Enabled True -ErrorAction Stop}
+catch [Microsoft.Management.Infrastructure.CimException] {write-host "Rule Already Exists"}
 
 Write-Host "Allowing RPC Endpoint Mapper via Port 135, UDP" -BackgroundColor DarkBlue -ForegroundColor Yellow
-New-NetFirewallRule -Name "RPC Endpoint Mapper (135) UDP" -DisplayName "RPC Endpoint Mapper (135) UDP" -Protocol UDP -Direction Inbound -LocalPort "135" -Program "%SystemRoot%\System32\svchost.exe" -Profile Domain,Private -Action Allow -Enabled True
+try {New-NetFirewallRule -Name "RPC Endpoint Mapper (135) UDP" -DisplayName "RPC Endpoint Mapper (135) UDP" -Protocol UDP -Direction Inbound -LocalPort "135" -Program "%SystemRoot%\System32\svchost.exe" -Profile Domain,Private -Action Allow -Enabled True -ErrorAction Stop}
+catch [Microsoft.Management.Infrastructure.CimException] {write-host "Rule Already Exists"}
 
 Write-Host "Allowing WMI RPCSS, TCP" -BackgroundColor DarkBlue -ForegroundColor Yellow
 Set-NetFirewallRule -Name "WMI-RPCSS-In-TCP" -Profile Domain,Private -Protocol TCP -Action Allow -Enabled True
