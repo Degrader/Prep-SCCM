@@ -18,6 +18,16 @@
 #Get Domain name
 $DomainName = (Get-WmiObject win32_computersystem).domain
 
+#Get Computer name
+$Computer = $env:COMPUTERNAME
+ 
+#Local Administrator group name
+$ADSI = [ADSI]("WinNT://$Computer")
+$Group = $ADSI.Children.Find('Administrators', 'group')
+
+#Add Local Computer account to Local Administrators
+$Group.Add(("WinNT://$Computer`$,computer"))
+
 ###Build D:\Sources
 if ((Test-Path "D:") -eq $true){
     new-item -ItemType Directory -Path D:\Sources\Applications -Force
