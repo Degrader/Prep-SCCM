@@ -1,3 +1,1 @@
-This script creates a Sources directory on a D: "data" drive, and establishes the ACL/SMB
-Share for this directory. This script also installs all necessary Roles and Features as
-well as firewall rules needed for SCCM Installation/Deployment.
+Preps server for SCCM Installation/Deployment. Installs necessary roles and features for SCCM, as well as configuring firewall rules for these roles/features. Creates Sources directory and subdirectories on D: data volume, adds Domain Admins with inherited Full Control to top level directory. Sources directory contains Applications, OSD, Packages directories. OSD directory contains Drivers and Images directories.
